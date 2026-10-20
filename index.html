@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Titan X Bot - User Portal</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        orange: {
+                            DEFAULT: '#FF6600',
+                            light: '#FF8533',
+                            dark: '#CC5200'
+                        },
+                        gold: '#FFD700',
+                        darkBg: '#08080A',
+                        panelBg: '#121318'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .orange-border { border-color: rgba(255, 102, 0, 0.4); }
+        .orange-glow { box-shadow: 0 0 15px rgba(255, 102, 0, 0.25); }
+        .red-glow { box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+        .green-glow { box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #08080A; }
+        ::-webkit-scrollbar-thumb { background: #1e2029; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #FF6600; }
+
+        #page-bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+            opacity: 0.35;
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-gray-200 font-sans min-h-screen flex flex-col pb-20 select-none relative">
+
+    <canvas id="page-bg-canvas"></canvas>
+
+    <header class="bg-panelBg border-b orange-border p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-black border border-orange flex items-center justify-center text-orange font-bold text-xl orange-glow">
+                TX
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-orange tracking-widest uppercase">Titan X Bot</h1>
+                <p class="text-xs text-gray-400">Algorithmic Trading Terminal</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <div id="user-tier-badge" class="px-3 py-1 bg-orange-950/40 border border-orange text-orange text-xs font-semibold rounded-full uppercase">
+                Tier: Loading...
+            </div>
+            <button id="auth-btn" onclick="openAuthModal()" class="bg-orange text-black hover:bg-orange-light font-bold text-xs px-4 py-2 rounded transition shadow">
+                Sign In
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6 z-10 relative">
+
+        <div id="unregistered-banner" class="hidden bg-red-950/30 border border-red-500/50 p-6 rounded-xl text-center space-y-4 red-glow backdrop-blur-md">
+            <div class="inline-flex p-3 bg-red-500/10 rounded-full text-red-500 mb-2">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <h2 class="text-xl font-bold text-red-400">Bot Service Not Registered</h2>
+            <p class="text-sm text-gray-300 max-w-xl mx-auto">Your account is currently not configured or linked to the Titan X trading engine. Register your broker credentials and payment info below to activate trading features.</p>
+            <button onclick="switchTab('service')" class="px-6 py-2.5 bg-orange text-black font-bold rounded-lg shadow-lg hover:bg-orange-light transition">
+                Register Service Now
+            </button>
+        </div>
+
+        <!-- TAB 1: DASHBOARD VIEW -->
+        <div id="tab-dashboard" class="tab-content space-y-6">
+            <div id="status-card" class="bg-panelBg/90 backdrop-blur border orange-border p-6 rounded-xl flex flex-col md:flex-row justify-between items-center gap-6 shadow-xl relative overflow-hidden">
+                <div class="flex items-center space-x-5 z-10">
+                    <div id="status-indicator" class="w-14 h-14 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 text-2xl font-bold">
+                        <span class="animate-pulse">●</span>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400 uppercase tracking-widest font-semibold">Engine Status</div>
+                        <div id="bot-status-text" class="text-2xl font-black text-red-500 uppercase tracking-wider">Disconnected</div>
+                        <div id="status-subtext" class="text-xs text-gray-400 mt-1">Awaiting Approval & Master Connection</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-8 z-10 text-right">
+                    <div>
+                        <div class="text-xs text-gray-400 uppercase tracking-widest font-semibold">Time Remaining</div>
+                        <div id="countdown-timer" class="text-2xl font-mono font-bold text-white">00D : 00H : 00M : 00S</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-panelBg/90 backdrop-blur border orange-border p-5 rounded-xl shadow-xl space-y-4 relative overflow-hidden">
+                <div class="flex justify-between items-center z-10 relative">
+                    <div class="flex items-center space-x-3">
+                        <span id="chart-ping" class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
+                        <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider">Live High-Frequency Execution Feed (1M Candlesticks)</h3>
+                    </div>
+                    <div class="text-xs font-mono text-orange bg-black px-3 py-1 rounded border border-orange/30">
+                        Pair: EUR/USD | Scalper v4.2
+                    </div>
+                </div>
+                <div class="relative h-64 w-full bg-black rounded-lg border border-gray-800 overflow-hidden">
+                    <canvas id="tradeCanvas" class="w-full h-full relative z-10"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-panelBg/90 backdrop-blur border border-gray-800 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-400">EUR/USD</div>
+                        <div id="quote-eurusd" class="text-lg font-mono font-bold text-green-400">1.08420</div>
+                    </div>
+                    <div class="text-xs text-green-500 bg-green-500/10 px-2 py-1 rounded">+0.14%</div>
+                </div>
+                <div class="bg-panelBg/90 backdrop-blur border border-gray-800 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-400">BTC/USD</div>
+                        <div id="quote-btcusd" class="text-lg font-mono font-bold text-green-400">67,420.50</div>
+                    </div>
+                    <div class="text-xs text-green-500 bg-green-500/10 px-2 py-1 rounded">+2.84%</div>
+                </div>
+                <div class="bg-panelBg/90 backdrop-blur border border-gray-800 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-400">GBP/JPY</div>
+                        <div id="quote-gbpjpy" class="text-lg font-mono font-bold text-red-400">191.240</div>
+                    </div>
+                    <div class="text-xs text-red-500 bg-red-500/10 px-2 py-1 rounded">-0.08%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: SERVICE ACCOUNT MANAGEMENT -->
+        <div id="tab-service" class="tab-content hidden space-y-6">
+            <div class="bg-panelBg/90 backdrop-blur border orange-border p-6 rounded-xl shadow-xl space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold text-orange">Service Account Configuration</h2>
+                    <p class="text-xs text-gray-400">Register or update broker credentials and mobile money details for execution.</p>
+                </div>
+
+                <form id="credentials-form" onsubmit="handleServiceSubmit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Broker Platform</label>
+                            <select id="broker-select" class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none">
+                                <option value="Binance Platform">Binance Platform</option>
+                                <option value="Exness MetaTrader">Exness MetaTrader</option>
+                                <option value="Deriv Synthetic">Deriv Synthetic</option>
+                                <option value="Bybit Crypto">Bybit Crypto</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Account Login / User ID</label>
+                            <input type="text" id="broker-user" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="e.g. 84920412">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">API Key / Access Token</label>
+                            <input type="password" id="broker-key" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="••••••••••••••••">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">API Secret / Password</label>
+                            <input type="password" id="broker-secret" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="••••••••••••••••">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 mb-1">Select Subscription Tier</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <label class="border border-gray-800 p-4 rounded-xl cursor-pointer hover:border-orange flex flex-col justify-between space-y-2 bg-black/40">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-bold text-gray-300">Starter</span>
+                                    <input type="radio" name="sub_tier" value="50" checked class="accent-orange" onchange="syncTierSelection()">
+                                </div>
+                                <div class="text-2xl font-bold text-white">$50 <span class="text-xs text-gray-400 font-normal">/mo</span></div>
+                            </label>
+
+                            <label class="border border-gray-800 p-4 rounded-xl cursor-pointer hover:border-orange flex flex-col justify-between space-y-2 bg-black/40">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-bold text-gray-300">Pro Trader</span>
+                                    <input type="radio" name="sub_tier" value="150" class="accent-orange" onchange="syncTierSelection()">
+                                </div>
+                                <div class="text-2xl font-bold text-white">$150 <span class="text-xs text-gray-400 font-normal">/mo</span></div>
+                            </label>
+
+                            <label class="border border-gray-800 p-4 rounded-xl cursor-pointer hover:border-orange flex flex-col justify-between space-y-2 bg-black/40">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm font-bold text-orange">VIP Master</span>
+                                    <input type="radio" name="sub_tier" value="200" class="accent-orange" onchange="syncTierSelection()">
+                                </div>
+                                <div class="text-2xl font-bold text-white">$200 <span class="text-xs text-gray-400 font-normal">/mo</span></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Mobile Money Network</label>
+                            <select id="mm-network" class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none">
+                                <option value="MTN">MTN Mobile Money</option>
+                                <option value="Airtel">Airtel Money</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Verification Name (Mobile Money Account Name)</label>
+                            <input type="text" id="mm-name" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="e.g. Astro Developer">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Payment Phone Number</label>
+                            <input type="text" id="payment-phone" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="+256 7XX XXX XXX">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 mb-1">Payment Reference / Transaction ID</label>
+                            <input type="text" id="payment-ref" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="e.g. TRX-9023481">
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" class="w-full py-3 bg-orange text-black font-bold rounded-lg shadow-lg hover:bg-orange-light transition uppercase tracking-wider text-sm">
+                            Submit Credentials & Request Activation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB 3: SUPPORT CHAT -->
+        <div id="tab-chat" class="tab-content hidden">
+            <div class="bg-panelBg/90 backdrop-blur border orange-border rounded-xl shadow-xl flex flex-col h-[600px]">
+                <div class="p-4 border-b border-gray-800 flex justify-between items-center">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <h3 class="font-bold text-orange text-sm">Titan Master Support</h3>
+                    </div>
+                    <span class="text-xs text-gray-500">Encrypted Synchronized Direct Link</span>
+                </div>
+
+                <div id="chat-box" class="flex-grow p-4 space-y-3 overflow-y-auto bg-black/60">
+                </div>
+
+                <form onsubmit="handleSendMessage(event)" class="p-3 border-t border-gray-800 flex space-x-2 bg-black/50">
+                    <input type="text" id="chat-input" class="flex-grow bg-black border border-gray-800 rounded-lg px-4 py-2.5 text-sm text-white focus:border-orange outline-none" placeholder="Message Master Operator...">
+                    <button type="submit" class="bg-orange text-black font-bold px-5 py-2.5 rounded-lg hover:bg-orange-light transition text-xs uppercase tracking-wider">
+                        Send
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- TAB 4: TRANSACTIONS LOG -->
+        <div id="tab-transactions" class="tab-content hidden">
+            <div class="bg-panelBg/90 backdrop-blur border orange-border p-6 rounded-xl shadow-xl space-y-4">
+                <h2 class="text-xl font-bold text-orange">Transaction History & Subscriptions</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-gray-300">
+                        <thead class="bg-black/60 text-orange uppercase border-b border-gray-800">
+                            <tr>
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Plan Amount</th>
+                                <th class="p-3">Reference</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-body" class="divide-y divide-gray-800">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- AUTHENTICATION MODAL -->
+    <div id="auth-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-panelBg border orange-border w-full max-w-md rounded-2xl p-6 shadow-2xl relative orange-glow">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white font-bold">&times;</button>
+            
+            <div class="text-center mb-6">
+                <h2 id="auth-modal-title" class="text-xl font-bold text-orange">Sign In to Titan X</h2>
+                <p class="text-xs text-gray-400 mt-1">Access your synchronized multi-device dashboard</p>
+            </div>
+
+            <div class="flex border-b border-gray-800 mb-6">
+                <button onclick="switchAuthMode('login')" id="mode-login-btn" class="flex-1 pb-2 text-sm font-bold border-b-2 border-orange text-orange transition">Sign In</button>
+                <button onclick="switchAuthMode('register')" id="mode-register-btn" class="flex-1 pb-2 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition">Register</button>
+            </div>
+
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div id="register-name-field" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Full Name</label>
+                    <input type="text" id="auth-name" class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="Astro Developer">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Email Address</label>
+                    <input type="email" id="auth-email" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="user@domain.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 mb-1">Password</label>
+                    <input type="password" id="auth-password" required class="w-full bg-black border border-gray-800 rounded p-2.5 text-sm text-gray-200 focus:border-orange outline-none" placeholder="••••••••">
+                </div>
+                <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-orange text-black font-bold rounded-lg shadow hover:bg-orange-light transition uppercase tracking-wider text-xs">
+                    Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 w-full bg-panelBg/95 backdrop-blur border-t orange-border flex justify-around py-2.5 px-4 z-50">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn flex flex-col items-center space-y-1 text-orange">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 011 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Dashboard</span>
+        </button>
+
+        <button onclick="switchTab('service')" id="nav-service" class="nav-btn flex flex-col items-center space-y-1 text-gray-500 hover:text-orange transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Service Setup</span>
+        </button>
+
+        <button onclick="switchTab('chat')" id="nav-chat" class="nav-btn flex flex-col items-center space-y-1 text-gray-500 hover:text-orange transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Master Chat</span>
+        </button>
+
+        <button onclick="switchTab('transactions')" id="nav-transactions" class="nav-btn flex flex-col items-center space-y-1 text-gray-500 hover:text-orange transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            <span class="text-[10px] font-bold uppercase tracking-wider">Transactions</span>
+        </button>
+    </nav>
+
+    <script>
+        function getGlobalDB() {
+            let db = localStorage.getItem('titan_db');
+            if (!db) {
+                db = { users: [], currentUserEmail: null };
+                localStorage.setItem('titan_db', JSON.stringify(db));
+            }
+            return JSON.parse(db);
+        }
+
+        function saveGlobalDB(db) {
+            localStorage.setItem('titan_db', JSON.stringify(db));
+        }
+
+        function getCurrentUser() {
+            const db = getGlobalDB();
+            if (!db.currentUserEmail) return null;
+            return db.users.find(u => u.email === db.currentUserEmail) || null;
+        }
+
+        function updateCurrentUserData(updatedUser) {
+            let db = getGlobalDB();
+            const index = db.users.findIndex(u => u.email === updatedUser.email);
+            if (index !== -1) {
+                db.users[index] = updatedUser;
+                saveGlobalDB(db);
+            }
+        }
+
+        function syncTierSelection() {
+            const selectedTier = parseInt(document.querySelector('input[name="sub_tier"]:checked').value);
+            let user = getCurrentUser();
+            if (user && user.tier !== selectedTier) {
+                user.tier = selectedTier;
+                updateCurrentUserData(user);
+                renderState();
+            }
+        }
+
+        let timerInterval = null;
+
+        function startCountdown(durationSeconds) {
+            if (timerInterval) clearInterval(timerInterval);
+            let timer = durationSeconds;
+
+            function updateTimerDisplay() {
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('countdown-timer').innerText = "00D : 00H : 00M : 00S";
+                    let user = getCurrentUser();
+                    if (user && user.status === 'Approved') {
+                        user.status = 'Disconnected';
+                        user.disconnectNoticeSent = true;
+                        updateCurrentUserData(user);
+                        renderState();
+                    }
+                    return;
+                }
+
+                const days = Math.floor(timer / (24 * 3600));
+                const hours = Math.floor((timer % (24 * 3600)) / 3600);
+                const minutes = Math.floor((timer % 3600) / 60);
+                const seconds = Math.floor(timer % 60);
+
+                const dStr = String(days).padStart(2, '0');
+                const hStr = String(hours).padStart(2, '0');
+                const mStr = String(minutes).padStart(2, '0');
+                const sStr = String(seconds).padStart(2, '0');
+
+                document.getElementById('countdown-timer').innerText = `${dStr}D : ${hStr}H : ${mStr}M : ${sStr}S`;
+                timer--;
+            }
+
+            updateTimerDisplay();
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+        }
+
+        function renderState() {
+            const user = getCurrentUser();
+            const authBtn = document.getElementById('auth-btn');
+            const banner = document.getElementById('unregistered-banner');
+
+            if (!user) {
+                authBtn.innerText = "Sign In";
+                authBtn.className = "bg-orange text-black hover:bg-orange-light font-bold text-xs px-4 py-2 rounded transition shadow";
+                document.getElementById('user-tier-badge').innerText = "TIER: GUEST";
+                banner.classList.add('hidden');
+                document.getElementById('bot-status-text').innerText = 'DISCONNECTED';
+                document.getElementById('bot-status-text').className = 'text-2xl font-black text-red-500 uppercase tracking-wider';
+                document.getElementById('countdown-timer').innerText = "00D : 00H : 00M : 00S";
+                
+                // Clear form inputs and logs completely when logged out for security
+                document.getElementById('credentials-form').reset();
+                document.getElementById('chat-box').innerHTML = '';
+                document.getElementById('transactions-body').innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">Sign in to view transaction history.</td></tr>`;
+                if (timerInterval) clearInterval(timerInterval);
+                return;
+            }
+
+            authBtn.innerText = "Sign Out";
+            authBtn.className = "bg-red-500/20 border border-red-500 text-red-400 hover:bg-red-500/30 font-bold text-xs px-4 py-2 rounded transition shadow";
+            
+            document.getElementById('user-tier-badge').innerText = `TIER: $${user.tier}/MO`;
+
+            if (!user.registered) {
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+
+            const statusText = document.getElementById('bot-status-text');
+            const statusInd = document.getElementById('status-indicator');
+            const statusSub = document.getElementById('status-subtext');
+            const statusCard = document.getElementById('status-card');
+            const chartPing = document.getElementById('chart-ping');
+
+            if (!user.registered) {
+                statusText.innerText = 'NOT REGISTERED';
+                statusText.className = 'text-2xl font-black text-gray-500 uppercase tracking-wider';
+                statusInd.className = 'w-14 h-14 rounded-xl bg-gray-500/10 border border-gray-500/30 flex items-center justify-center text-gray-500 text-2xl font-bold';
+                statusSub.innerText = 'Service Account Credentials Required';
+                statusCard.classList.remove('green-glow');
+                chartPing.className = "w-3 h-3 rounded-full bg-gray-500";
+            } else if (user.status === 'Approved') {
+                statusText.innerText = 'BOT RUNNING';
+                statusText.className = 'text-2xl font-black text-green-400 uppercase tracking-wider';
+                statusInd.className = 'w-14 h-14 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400 text-2xl font-bold';
+                statusSub.innerText = 'Algorithmic Execution Approved by Master';
+                statusCard.classList.add('green-glow');
+                chartPing.className = "w-3 h-3 rounded-full bg-green-500 animate-ping";
+
+                if (!user.approvalTime) {
+                    user.approvalTime = Date.now();
+                    updateCurrentUserData(user);
+                }
+                const elapsedSeconds = Math.floor((Date.now() - user.approvalTime) / 1000);
+                const totalSeconds = (user.durationDays || 30) * 24 * 3600;
+                const remaining = totalSeconds - elapsedSeconds;
+                startCountdown(remaining > 0 ? remaining : 0);
+
+            } else {
+                statusText.innerText = 'DISCONNECTED';
+                statusText.className = 'text-2xl font-black text-red-500 uppercase tracking-wider';
+                statusInd.className = 'w-14 h-14 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 text-2xl font-bold';
+                statusSub.innerText = 'Bot Deactivated by Master or Timeout';
+                statusCard.classList.remove('green-glow');
+                chartPing.className = "w-3 h-3 rounded-full bg-red-500";
+                if (timerInterval) clearInterval(timerInterval);
+                document.getElementById('countdown-timer').innerText = "00D : 00H : 00M : 00S";
+            }
+
+            if(user.broker) document.getElementById('broker-select').value = user.broker;
+            if(user.brokerUser) document.getElementById('broker-user').value = user.brokerUser;
+            if(user.brokerKey) document.getElementById('broker-key').value = user.brokerKey;
+            if(user.brokerSecret) document.getElementById('broker-secret').value = user.brokerSecret;
+            if(user.mmNetwork) document.getElementById('mm-network').value = user.mmNetwork;
+            if(user.mmName) document.getElementById('mm-name').value = user.mmName;
+            if(user.paymentPhone) document.getElementById('payment-phone').value = user.paymentPhone;
+            if(user.paymentRef) document.getElementById('payment-ref').value = user.paymentRef;
+
+            if(user.tier) {
+                const radios = document.querySelectorAll('input[name="sub_tier"]');
+                radios.forEach(r => {
+                    if(parseInt(r.value) === user.tier) r.checked = true;
+                });
+            }
+
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '';
+            (user.chat || []).forEach(msg => {
+                const isMaster = msg.sender === 'master';
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `flex flex-col ${isMaster ? 'items-start' : 'items-end'}`;
+                msgDiv.innerHTML = `
+                    <div class="max-w-[80%] rounded-xl px-4 py-2.5 text-xs shadow ${isMaster ? 'bg-amber-500/20 text-gold border border-gold/40 font-semibold' : 'bg-orange text-black font-semibold'}">
+                        ${msg.text}
+                    </div>
+                    <span class="text-[9px] text-gray-400 mt-1">${msg.time} (${isMaster ? 'Master' : 'You'})</span>
+                `;
+                chatBox.appendChild(msgDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            const transBody = document.getElementById('transactions-body');
+            transBody.innerHTML = '';
+            if (!user.history || user.history.length === 0) {
+                transBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No transaction logs recorded.</td></tr>`;
+            } else {
+                user.history.forEach(tx => {
+                    // Synchronize status to PAID (Approved) or PENDING automatically
+                    const isPaid = tx.status === 'Approved' || user.status === 'Approved';
+                    const statusLabel = isPaid ? 'PAID' : 'PENDING';
+                    const statusClass = isPaid ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400';
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="p-3 font-mono">${tx.date}</td>
+                        <td class="p-3 font-bold text-white">$${tx.amount}</td>
+                        <td class="p-3 font-mono">${tx.ref}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] uppercase font-bold ${statusClass}">${statusLabel}</span></td>
+                    `;
+                    transBody.appendChild(row);
+                });
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.className = 'nav-btn flex flex-col items-center space-y-1 text-gray-500 hover:text-orange transition');
+
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabId}`).className = 'nav-btn flex flex-col items-center space-y-1 text-orange';
+        }
+
+        let isRegistering = false;
+
+        function openAuthModal() {
+            const user = getCurrentUser();
+            if (user) {
+                if (confirm("Are you sure you want to sign out?")) {
+                    let db = getGlobalDB();
+                    db.currentUserEmail = null;
+                    saveGlobalDB(db);
+                    if (timerInterval) clearInterval(timerInterval);
+                    renderState();
+                }
+                return;
+            }
+            document.getElementById('auth-modal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+
+        function switchAuthMode(mode) {
+            isRegistering = (mode === 'register');
+            const title = document.getElementById('auth-modal-title');
+            const submitBtn = document.getElementById('auth-submit-btn');
+            const nameField = document.getElementById('register-name-field');
+            const loginBtn = document.getElementById('mode-login-btn');
+            const regBtn = document.getElementById('mode-register-btn');
+
+            if (isRegistering) {
+                title.innerText = "Create Titan Account";
+                submitBtn.innerText = "Register & Continue";
+                nameField.classList.remove('hidden');
+                regBtn.className = "flex-1 pb-2 text-sm font-bold border-b-2 border-orange text-orange transition";
+                loginBtn.className = "flex-1 pb-2 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition";
+            } else {
+                title.innerText = "Sign In to Titan X";
+                submitBtn.innerText = "Sign In";
+                nameField.classList.add('hidden');
+                loginBtn.className = "flex-1 pb-2 text-sm font-bold border-b-2 border-orange text-orange transition";
+                regBtn.className = "flex-1 pb-2 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition";
+            }
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value.trim().toLowerCase();
+            const password = document.getElementById('auth-password').value;
+            const name = document.getElementById('auth-name').value.trim();
+            let db = getGlobalDB();
+
+            if (isRegistering) {
+                const existingUser = db.users.find(u => u.email === email);
+                if (existingUser) {
+                    alert("An account with this email address already exists.");
+                    return;
+                }
+
+                const newUser = {
+                    id: 'usr_' + Date.now(),
+                    name: name || "Trader",
+                    email: email,
+                    password: password,
+                    registered: false,
+                    status: 'Disconnected',
+                    tier: 50,
+                    durationDays: 30,
+                    broker: 'Binance Platform',
+                    brokerUser: '',
+                    brokerKey: '',
+                    brokerSecret: '',
+                    mmNetwork: 'MTN',
+                    mmName: '',
+                    paymentPhone: '',
+                    paymentRef: '',
+                    chat: [
+                        { sender: 'master', text: `Welcome ${name || 'Trader'} to Titan X Bot. Please configure your service credentials.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+                    ],
+                    history: []
+                };
+
+                db.users.push(newUser);
+                db.currentUserEmail = email;
+                saveGlobalDB(db);
+                closeAuthModal();
+                renderState();
+            } else {
+                const user = db.users.find(u => u.email === email && u.password === password);
+                if (!user) {
+                    alert("Invalid email or password.");
+                    return;
+                }
+
+                db.currentUserEmail = user.email;
+                saveGlobalDB(db);
+                closeAuthModal();
+                renderState();
+            }
+        }
+
+        function handleServiceSubmit(e) {
+            e.preventDefault();
+            let user = getCurrentUser();
+            if (!user) {
+                alert("Please sign in or register an account before configuring services.");
+                openAuthModal();
+                return;
+            }
+
+            const selectedTier = parseInt(document.querySelector('input[name="sub_tier"]:checked').value);
+
+            user.registered = true;
+            user.broker = document.getElementById('broker-select').value;
+            user.brokerUser = document.getElementById('broker-user').value;
+            user.brokerKey = document.getElementById('broker-key').value;
+            user.brokerSecret = document.getElementById('broker-secret').value;
+            user.mmNetwork = document.getElementById('mm-network').value;
+            user.mmName = document.getElementById('mm-name').value;
+            user.paymentPhone = document.getElementById('payment-phone').value;
+            user.paymentRef = document.getElementById('payment-ref').value;
+            user.tier = selectedTier;
+
+            user.history = user.history || [];
+            const existingTx = user.history.find(tx => tx.ref === user.paymentRef);
+            if(existingTx) {
+                existingTx.amount = selectedTier;
+                existingTx.status = user.status === 'Approved' ? 'Approved' : 'Pending';
+            } else {
+                user.history.unshift({
+                    date: new Date().toLocaleDateString(),
+                    amount: selectedTier,
+                    ref: user.paymentRef,
+                    status: user.status === 'Approved' ? 'Approved' : 'Pending'
+                });
+            }
+
+            updateCurrentUserData(user);
+            renderState();
+            switchTab('dashboard');
+        }
+
+        function handleSendMessage(e) {
+            e.preventDefault();
+            let user = getCurrentUser();
+            if (!user) {
+                alert("Please sign in to send messages.");
+                openAuthModal();
+                return;
+            }
+
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(!text) return;
+
+            user.chat = user.chat || [];
+            user.chat.push({
+                sender: 'user',
+                text: text,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+
+            input.value = '';
+            updateCurrentUserData(user);
+            renderState();
+        }
+
+        const bgCanvas = document.getElementById('page-bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        let bgCandles = [];
+        let movingLines = [];
+        let tradeSignals = [];
+
+        function initBackgroundAnimation() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+            
+            bgCandles = [];
+            const colWidth = 35;
+            const cols = Math.floor(bgCanvas.width / colWidth) + 2;
+            for (let i = 0; i < cols; i++) {
+                bgCandles.push({
+                    x: i * colWidth,
+                    y: bgCanvas.height * 0.3 + Math.random() * (bgCanvas.height * 0.4),
+                    height: 30 + Math.random() * 120,
+                    wickHeight: 160 + Math.random() * 60,
+                    isGreen: Math.random() > 0.45
+                });
+            }
+
+            movingLines = [];
+            for (let i = 0; i < 4; i++) {
+                movingLines.push({
+                    y: Math.random() * bgCanvas.height,
+                    points: [],
+                    speed: 1 + Math.random() * 1.5,
+                    color: Math.random() > 0.5 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)'
+                });
+            }
+
+            tradeSignals = [
+                { x: 150, y: 250, type: 'BUY' },
+                { x: 450, y: 400, type: 'SELL' },
+                { x: 800, y: 200, type: 'BUY' },
+                { x: 1100, y: 500, type: 'SELL' }
+            ];
+        }
+
+        function drawBackgroundAnimation() {
+            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            bgCandles.forEach(c => {
+                bgCtx.strokeStyle = c.isGreen ? 'rgba(34, 197, 94, 0.75)' : 'rgba(239, 68, 68, 0.75)';
+                bgCtx.lineWidth = 1.5;
+                bgCtx.beginPath();
+                bgCtx.moveTo(c.x + 10, c.y - c.wickHeight / 2);
+                bgCtx.lineTo(c.x + 10, c.y + c.wickHeight / 2);
+                bgCtx.stroke();
+
+                bgCtx.fillStyle = c.isGreen ? 'rgba(34, 197, 94, 0.55)' : 'rgba(239, 68, 68, 0.55)';
+                bgCtx.fillRect(c.x, c.y - c.height / 2, 20, c.height);
+
+                c.y += (Math.sin(Date.now() * 0.001 + c.x) * 0.2);
+            });
+
+            bgCtx.lineWidth = 2;
+            bgCtx.setLineDash([6, 6]);
+            movingLines.forEach(line => {
+                bgCtx.strokeStyle = line.color;
+                bgCtx.beginPath();
+                let curY = line.y;
+                for (let x = 0; x < bgCanvas.width; x += 50) {
+                    curY += Math.sin(x * 0.01 + Date.now() * 0.002) * 1.5;
+                    if (x === 0) bgCtx.moveTo(x, curY);
+                    else bgCtx.lineTo(x, curY);
+                }
+                bgCtx.stroke();
+            });
+            bgCtx.setLineDash([]);
+
+            tradeSignals.forEach(sig => {
+                bgCtx.font = "bold 11px sans-serif";
+                bgCtx.fillStyle = sig.type === 'BUY' ? 'rgba(34, 197, 94, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+                bgCtx.fillRect(sig.x, sig.y, 42, 20);
+                bgCtx.fillStyle = '#000000';
+                bgCtx.fillText(sig.type, sig.x + 9, sig.y + 14);
+
+                sig.x -= 0.3;
+                if (sig.x < -50) sig.x = bgCanvas.width + 50;
+            });
+        }
+
+        const canvas = document.getElementById('tradeCanvas');
+        const ctx = canvas.getContext('2d');
+        let tradeCandles = [];
+
+        function initTradeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            tradeCandles = [];
+            const candleWidth = 22;
+            const count = Math.floor(canvas.width / candleWidth);
+            let basePrice = 100;
+            for(let i = 0; i < count; i++) {
+                let open = basePrice + (Math.random() - 0.5) * 6;
+                let close = open + (Math.random() - 0.5) * 8;
+                let high = Math.max(open, close) + Math.random() * 4;
+                let low = Math.min(open, close) - Math.random() * 4;
+                tradeCandles.push({ open, close, high, low });
+                basePrice = close;
+            }
+        }
+
+        function drawTradeCandles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const candleWidth = 22;
+            const spacing = 6;
+            const totalWidth = candleWidth + spacing;
+            
+            const prices = tradeCandles.flatMap(c => [c.high, c.low]);
+            const minP = Math.min(...prices);
+            const maxP = Math.max(...prices);
+            const range = (maxP - minP) || 1;
+            const padding = 30;
+            const usableHeight = canvas.height - (padding * 2);
+
+            function priceToY(p) {
+                return canvas.height - padding - ((p - minP) / range) * usableHeight;
+            }
+
+            tradeCandles.forEach((c, i) => {
+                const x = i * totalWidth + 10;
+                const isGreen = c.close >= c.open;
+                const color = isGreen ? '#22c55e' : '#ef4444';
+
+                const yOpen = priceToY(c.open);
+                const yClose = priceToY(c.close);
+                const yHigh = priceToY(c.high);
+                const yLow = priceToY(c.low);
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(x + candleWidth / 2, yHigh);
+                ctx.lineTo(x + candleWidth / 2, yLow);
+                ctx.stroke();
+
+                ctx.fillStyle = color;
+                const bodyTop = Math.min(yOpen, yClose);
+                const bodyHeight = Math.max(Math.abs(yClose - yOpen), 2);
+                ctx.fillRect(x, bodyTop, candleWidth, bodyHeight);
+            });
+
+            const user = getCurrentUser();
+            if(user && user.status === 'Approved') {
+                let last = tradeCandles[tradeCandles.length - 1];
+                let delta = (Math.random() - 0.48) * 2;
+                last.close += delta;
+                last.high = Math.max(last.high, last.close);
+                last.low = Math.min(last.low, last.close);
+
+                if(Math.random() < 0.15) {
+                    let nextOpen = last.close;
+                    let nextClose = nextOpen + (Math.random() - 0.5) * 6;
+                    tradeCandles.shift();
+                    tradeCandles.push({
+                        open: nextOpen,
+                        close: nextClose,
+                        high: Math.max(nextOpen, nextClose) + Math.random() * 3,
+                        low: Math.min(nextOpen, nextClose) - Math.random() * 3
+                    });
+                }
+            }
+        }
+
+        window.addEventListener('storage', renderState);
+        window.addEventListener('resize', () => { initBackgroundAnimation(); initTradeCanvas(); });
+
+        window.onload = () => {
+            getGlobalDB();
+            renderState();
+            initBackgroundAnimation();
+            initTradeCanvas();
+            setInterval(() => { drawBackgroundAnimation(); drawTradeCandles(); }, 150);
+            setInterval(() => { renderState(); }, 1000);
+        };
+    </script>
+</body>
+</html>
