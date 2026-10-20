@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TITAN X BOT - Master Cloud Control</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        orange: '#FF6600',
+                        'orange-light': '#FF8533',
+                        gold: '#FFD700',
+                        dark: '#0a0a0c',
+                        card: '#121216'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Firebase SDKs for Master Admin -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCrHy0xhxNv2yKMcxlD9G8ewkGUqjQeKxc",
+            authDomain: "taitan-xbot.firebaseapp.com",
+            databaseURL: "https://taitan-xbot-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "taitan-xbot",
+            storageBucket: "taitan-xbot.firebasestorage.app",
+            messagingSenderId: "290659192310",
+            appId: "1:290659192310:web:0af4967098749f4ba00bd7",
+            measurementId: "G-H59X3FW5ZQ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        window.masterFirebase = { db, ref, onValue, set, update };
+    </script>
+
+    <style>
+        .orange-glow { box-shadow: 0 0 20px rgba(255, 102, 0, 0.15); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #08080A; }
+        ::-webkit-scrollbar-thumb { background: #1e2029; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-dark text-gray-100 min-h-screen font-sans selection:bg-orange selection:text-black">
+
+    <div class="min-h-screen flex flex-col pb-12 z-10 relative">
+        <header class="border-b border-gray-800 bg-black/80 backdrop-blur sticky top-0 z-50 px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-orange/10 border border-orange flex items-center justify-center font-bold text-orange text-lg">TX</div>
+                <div>
+                    <h1 class="font-black tracking-wider text-sm">TITAN X BOT</h1>
+                    <p class="text-[10px] text-gray-400">Master Cloud Administration Center</p>
+                </div>
+            </div>
+            <div>
+                <a href="index.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-bold rounded-lg transition text-gray-200">Switch to User Portal</a>
+            </div>
+        </header>
+
+        <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-card/90 border border-gray-800 p-5 rounded-2xl flex items-center space-x-4 shadow-xl">
+                    <div class="w-12 h-12 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400 text-xl font-bold">●</div>
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Active Running Bots</div>
+                        <div id="metric-active-count" class="text-2xl font-black text-green-400 font-mono">0</div>
+                    </div>
+                </div>
+                <div class="bg-card/90 border border-gray-800 p-5 rounded-2xl flex items-center space-x-4 shadow-xl">
+                    <div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 text-xl font-bold">●</div>
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Disconnected Users</div>
+                        <div id="metric-off-count" class="text-2xl font-black text-red-500 font-mono">0</div>
+                    </div>
+                </div>
+                <div class="bg-card/90 border border-gray-800 p-5 rounded-2xl flex items-center space-x-4 shadow-xl">
+                    <div class="w-12 h-12 rounded-xl bg-orange/10 border border-orange/30 flex items-center justify-center text-orange text-xl font-bold">⌛</div>
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring Within 24h</div>
+                        <div id="metric-expiring-count" class="text-2xl font-black text-orange font-mono">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-card/90 border border-gray-800 rounded-2xl p-6 shadow-2xl orange-glow space-y-4">
+                <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gold">Master Cloud User & Timer Monitoring</h2>
+                        <p class="text-xs text-gray-400 mt-1">Live cloud status, auto-paid transaction updates, and approvals.</p>
+                    </div>
+                    <span class="px-3 py-1 bg-red-500/10 border border-red-500 rounded-full text-xs font-bold text-red-400">CLOUD MASTER ACCESS</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-300">
+                        <thead class="bg-black/50 text-xs uppercase text-gold border-b border-gray-800">
+                            <tr>
+                                <th class="p-3">User Email</th>
+                                <th class="p-3 whitespace-nowrap">Mobile Money Verification</th>
+                                <th class="p-3 whitespace-nowrap">Tier & Duration</th>
+                                <th class="p-3 whitespace-nowrap">Status</th>
+                                <th class="p-3 text-right whitespace-nowrap">Master Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="master-users-table" class="divide-y divide-gray-800 font-mono text-xs">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-card/90 border border-gray-800 rounded-2xl shadow-2xl p-6 space-y-4">
+                <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                    <h3 class="text-base font-bold text-gold uppercase tracking-wider">Synchronized Cloud Chat Console</h3>
+                    <select id="chat-user-select" onchange="renderMasterChat()" class="bg-black border border-gray-800 text-xs text-gold rounded px-3 py-2 outline-none">
+                        <option value="">Select User to Chat...</option>
+                    </select>
+                </div>
+                <div id="master-chat-box" class="h-96 overflow-y-auto space-y-3 p-4 bg-black/70 rounded-xl border border-gray-800">
+                    <div class="text-center text-xs text-amber-400 py-10">Select a user above to view messages.</div>
+                </div>
+                <form onsubmit="handleMasterSendMessage(event)" class="flex space-x-2">
+                    <input type="text" id="master-chat-input" class="flex-grow bg-black border border-gray-800 rounded-lg px-4 py-3 text-xs text-amber-300 outline-none" placeholder="Type direct reply...">
+                    <button type="submit" class="bg-amber-500 text-black font-bold px-6 py-3 rounded-lg text-xs hover:bg-amber-400 transition uppercase">
+                        Send Reply
+                    </button>
+                </form>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        let allUsersData = {};
+        let selectedChatUid = '';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const checkInterval = setInterval(() => {
+                if (window.masterFirebase) {
+                    clearInterval(checkInterval);
+                    initMasterDashboard();
+                }
+            }, 100);
+        });
+
+        function initMasterDashboard() {
+            const { db, ref, onValue } = window.masterFirebase;
+            const usersRef = ref(db, 'users');
+
+            onValue(usersRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    allUsersData = snapshot.val();
+                    renderMasterTable();
+                } else {
+                    allUsersData = {};
+                    renderMasterTable();
+                }
+            });
+        }
+
+        function renderMasterTable() {
+            const tbody = document.getElementById('master-users-table');
+            const chatSelect = document.getElementById('chat-user-select');
+            tbody.innerHTML = '';
+            
+            const currentSelected = chatSelect.value;
+            chatSelect.innerHTML = '<option value="">Select User to Chat...</option>';
+
+            let activeCount = 0;
+            let offCount = 0;
+            let expiringCount = 0;
+
+            const uids = Object.keys(allUsersData);
+            if (uids.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-500">No users registered in cloud database.</td></tr>`;
+                return;
+            }
+
+            uids.forEach(uid => {
+                const u = allUsersData[uid];
+                const opt = document.createElement('option');
+                opt.value = uid;
+                opt.innerText = `${u.email}`;
+                if (uid === currentSelected) opt.selected = true;
+                chatSelect.appendChild(opt);
+
+                if (u.status === 'Approved') activeCount++;
+                else offCount++;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3">
+                        <div class="font-bold text-gray-200">${u.name || 'Trader'}</div>
+                        <div class="text-[10px] text-gray-400">${u.email}</div>
+                    </td>
+                    <td class="p-3">
+                        <div>Network: <span class="text-gold font-bold">${u.mmNetwork || 'N/A'}</span></div>
+                        <div class="text-gray-200">Name: ${u.mmName || 'N/A'}</div>
+                        <div class="text-[10px] text-gold">Ref: ${u.paymentRef || 'N/A'}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="text-white font-bold">$${u.tier || 50}/mo</div>
+                    </td>
+                    <td class="p-3">
+                        <span class="px-2.5 py-1 rounded text-[10px] uppercase font-bold ${u.status === 'Approved' ? 'bg-green-500/10 text-green-400 border border-green-500' : 'bg-red-500/10 text-red-500 border border-red-500'}">
+                            ${u.status === 'Approved' ? 'BOT RUNNING' : 'DISCONNECTED'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-right space-x-2">
+                        ${u.status !== 'Approved'
+                            ? `<button onclick="approveUser('${uid}')" class="px-3 py-1 bg-green-500/25 border border-green-500 text-green-300 rounded hover:bg-green-500/40">Approve & Pay</button>`
+                            : `<button onclick="disconnectUser('${uid}')" class="px-3 py-1 bg-red-500/25 border border-red-500 text-red-400 rounded hover:bg-red-500/40">Disconnect</button>`
+                        }
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('metric-active-count').innerText = activeCount;
+            document.getElementById('metric-off-count').innerText = offCount;
+            document.getElementById('metric-expiring-count').innerText = expiringCount;
+            renderMasterChat();
+        }
+
+        function approveUser(uid) {
+            const { db, ref, update } = window.masterFirebase;
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            let user = allUsersData[uid];
+            if (user) {
+                user.status = 'Approved';
+                user.approvalTime = Date.now();
+                
+                // Add approval notice to chat
+                user.chat = user.chat || {};
+                const newMsgKey = 'msg_' + Date.now();
+                user.chat[newMsgKey] = {
+                    sender: 'master',
+                    text: 'Your account and payment credentials have been approved! Bot execution is now running.',
+                    time: timeStr
+                };
+
+                // Update transactions to PAID/Approved automatically
+                if (user.history) {
+                    Object.keys(user.history).forEach(txKey => {
+                        user.history[txKey].status = 'Approved';
+                    });
+                }
+
+                update(ref(db, 'users/' + uid), user).then(() => {
+                    renderMasterTable();
+                });
+            }
+        }
+
+        function disconnectUser(uid) {
+            const { db, ref, update } = window.masterFirebase;
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            let user = allUsersData[uid];
+            if (user) {
+                user.status = 'Disconnected';
+                user.chat = user.chat || {};
+                const newMsgKey = 'msg_' + Date.now();
+                user.chat[newMsgKey] = {
+                    sender: 'master',
+                    text: 'ALERT: Your bot execution has been disconnected manually by the Master Control.',
+                    time: timeStr
+                };
+
+                update(ref(db, 'users/' + uid), user).then(() => {
+                    renderMasterTable();
+                });
+            }
+        }
+
+        function renderMasterChat() {
+            const uid = document.getElementById('chat-user-select').value;
+            const chatBox = document.getElementById('master-chat-box');
+            selectedChatUid = uid;
+
+            if (!uid || !allUsersData[uid]) {
+                chatBox.innerHTML = `<div class="text-center text-xs text-amber-400 py-10">Select a user above to view messages.</div>`;
+                return;
+            }
+
+            const user = allUsersData[uid];
+            chatBox.innerHTML = '';
+            const chatObj = user.chat || {};
+            Object.values(chatObj).forEach(msg => {
+                const isMaster = msg.sender === 'master';
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `flex flex-col ${isMaster ? 'items-end' : 'items-start'}`;
+                msgDiv.innerHTML = `
+                    <div class="max-w-[80%] rounded-xl px-4 py-2 text-xs shadow ${isMaster ? 'bg-amber-500/20 text-gold border border-gold/40 font-semibold' : 'bg-gray-800 text-gold border border-amber-500/30'}">
+                        ${msg.text}
+                    </div>
+                    <span class="text-[9px] text-amber-400/70 mt-1">${msg.time} (${isMaster ? 'Master' : 'User'})</span>
+                `;
+                chatBox.appendChild(msgDiv);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function handleMasterSendMessage(e) {
+            e.preventDefault();
+            if (!selectedChatUid || !allUsersData[selectedChatUid]) {
+                alert('Please select a user first.');
+                return;
+            }
+
+            const input = document.getElementById('master-chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const { db, ref, update } = window.masterFirebase;
+            let user = allUsersData[selectedChatUid];
+            user.chat = user.chat || {};
+            const msgKey = 'msg_' + Date.now();
+            user.chat[msgKey] = {
+                sender: 'master',
+                text: text,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            update(ref(db, 'users/' + selectedChatUid), user).then(() => {
+                input.value = '';
+                renderMasterChat();
+            });
+        }
+    </script>
+</body>
+</html>
+
